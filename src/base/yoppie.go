@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -12,25 +13,60 @@ const (
 	API_KEY  = "hoge"
 )
 
-func main() {
-	fmt.Println(ENDPOINT)
-	flag.Parse()
-	searchWord := flag.Arg(0)
-	execApi(searchWord)
-	fmt.Println(searchWord)
+type BingJson struct {
+	Type         string `json:"_type"`
+	QueryContext struct {
+		OriginalQuery string `json:"originalQuery"`
+	} `json:"queryContext"`
+	Value []struct {
+		ContentUrl string `json:"contentUrl"`
+	} `json:"value"`
 }
 
-func execApi(searchWord string) {
+func main() {
+	flag.Parse()
+	searchWord1 := flag.Arg(0)
+	//	searchWord2 := flag.Arg(1)
+	count := flag.Arg(1)
+	execApi(searchWord1, count)
+}
+
+func execApi(searchWord string, count string) {
 	// Create new http request
 	req, err := http.NewRequest("GET", ENDPOINT, nil)
 	errorHandling(err)
 
 	// Add get parameters
-	params :=req.URL.Query()
+	params := req.URL.Query()
+	params.Add("q", searchWord)
+	params.Add("count", count)
+	req.URL.RawQuery = params.Encode()
+
+	// Add request header
+	req.Header.Add("Ocp-Apim-Subscription-Key", API_KEY)
+
+	// Exec request with new http client
+	client := new(http.Client)
+	resp, err := client.Do(req)
+	errorHandling(err)
+
+	// Close resp
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	errorHandling(err)
+
+	// Parse json
+	bingJson := new(BingJson)
+	err = json.Unmarshal(body, &bingJson)
+	errorHandling(err)
+
+	for i, v := range bingJson.Value {
+		fmt.Printf("%d, %s", i, v)
+	}
 }
 
 func errorHandling(err error) {
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 }
