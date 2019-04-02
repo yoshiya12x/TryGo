@@ -13,9 +13,9 @@ import (
 
 const (
 	bingEndpoint     = "https://api.cognitive.microsoft.com/bing/v7.0/images/search"
-	bingApiKey       = "f6c2e323902845f79a8c1c0e988de404"
+	bingApiKey       = "bindApiKey"
 	bingHeaderApiKey = "Ocp-Apim-Subscription-Key"
-	slackWebhook     = "https://hooks.slack.com/services/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"
+	slackWebhook     = "slackWebhook"
 )
 
 type BingJson struct {
