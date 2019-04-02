@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 )
 
 const (
-	ENDPOINT = "https://api.cognitive.microsoft.com/bing/v7.0/images/search"
-	API_KEY  = "api_key"
-	WEBHOOK  = "webhook"
+	bingEndpoint     = "https://api.cognitive.microsoft.com/bing/v7.0/images/search"
+	bingApiKey       = "f6c2e323902845f79a8c1c0e988de404"
+	bingHeaderApiKey = "Ocp-Apim-Subscription-Key"
+	slackWebhook     = "https://hooks.slack.com/services/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"
 )
 
 type BingJson struct {
@@ -27,15 +29,19 @@ type BingJson struct {
 }
 
 func main() {
+	var searchWord string
+	var count string
+	flag.StringVar(&searchWord, "searchword", "", "Search word")
+	flag.StringVar(&count, "count", "0", "Count")
 	flag.Parse()
-	searchWord := flag.Arg(0)
-	count := flag.Arg(1)
+	searchWord = flag.Arg(0)
+	count = flag.Arg(1)
 	execApi(searchWord, count)
 }
 
 func execApi(searchWord string, count string) {
 	// Create new http request
-	req, err := http.NewRequest("GET", ENDPOINT, nil)
+	req, err := http.NewRequest("GET", bingEndpoint, nil)
 	errorHandling(err)
 
 	// Add get parameters
@@ -45,7 +51,7 @@ func execApi(searchWord string, count string) {
 	req.URL.RawQuery = params.Encode()
 
 	// Add request header
-	req.Header.Add("Ocp-Apim-Subscription-Key", API_KEY)
+	req.Header.Add(bingHeaderApiKey, bingApiKey)
 
 	// Exec request with new http client
 	client := new(http.Client)
@@ -63,17 +69,23 @@ func execApi(searchWord string, count string) {
 	errorHandling(err)
 
 	// Post images to slack
+	var wg sync.WaitGroup
 	for i, v := range bingJson.Value {
-		fmt.Printf("%d: %s ", i, v.ContentUrl)
-		postSlack(v.ContentUrl)
+		wg.Add(1)
+		go func(index int, url string) {
+			defer wg.Done()
+			fmt.Printf("%d: %s ", index, url)
+			postSlack(url)
+		}(i, v.ContentUrl)
 	}
+	wg.Wait()
 }
 
 func postSlack(text string) {
 	// Create new http request
 	data := url.Values{}
 	data.Set("payload", "{\"text\": \""+text+"\"}")
-	req, err := http.NewRequest("POST", WEBHOOK, strings.NewReader(data.Encode()))
+	req, err := http.NewRequest("POST", slackWebhook, strings.NewReader(data.Encode()))
 	errorHandling(err)
 
 	// Set request header
