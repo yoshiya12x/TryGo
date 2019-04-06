@@ -13,7 +13,7 @@ import (
 
 const (
 	bingEndpoint     = "https://api.cognitive.microsoft.com/bing/v7.0/images/search"
-	bingApiKey       = "bindApiKey"
+	bingApiKey       = "bingApiKey"
 	bingHeaderApiKey = "Ocp-Apim-Subscription-Key"
 	slackWebhook     = "slackWebhook"
 )
@@ -70,10 +70,15 @@ func execApi(searchWord string, count string) {
 
 	// Post images to slack
 	var wg sync.WaitGroup
+	ch := make(chan struct{}, 10)
 	for i, v := range bingJson.Value {
 		wg.Add(1)
+		ch <- struct{}{}
 		go func(index int, url string) {
-			defer wg.Done()
+			defer func(){
+				wg.Done()
+				<- ch
+			}()
 			fmt.Printf("%d: %s ", index, url)
 			postSlack(url)
 		}(i, v.ContentUrl)
